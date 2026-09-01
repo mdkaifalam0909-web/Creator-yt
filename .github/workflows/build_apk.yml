@@ -19,18 +19,27 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter SDK (Latest Stable)
+      - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.22.2'
           channel: 'stable'
           cache: true
 
       - name: Recreate Android Project Files Cleanly
         run: |
           flutter create . --project-name apexstream --platforms=android --org com.apex.stream
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
-          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
+          
+          # Fix compileSdk and minSdk across all plugins and app
+          cat << 'EOF' >> android/app/build.gradle
+          android {
+              compileSdkVersion 34
+              defaultConfig {
+                  minSdkVersion 21
+                  targetSdkVersion 34
+              }
+          }
+          EOF
 
       - name: Install Flutter Packages
         run: flutter pub get
