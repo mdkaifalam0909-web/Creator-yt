@@ -30,6 +30,10 @@ jobs:
           flutter create --org com.streamsphere.app my_app
           cp pubspec.yaml my_app/pubspec.yaml
           cp lib/main.dart my_app/lib/main.dart
+          
+          # Android Permissions for Gallery & Cloud
+          sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>\n<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>' my_app/android/app/src/main/AndroidManifest.xml
+          
           cd my_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
@@ -37,5 +41,5 @@ jobs:
       - name: Deliver APK File
         uses: actions/upload-artifact@v4
         with:
-          name: StreamSphere-Official-Release-APK
+          name: ApexStream-FullProduction-APK
           path: my_app/build/app/outputs/flutter-apk/app-release.apk
