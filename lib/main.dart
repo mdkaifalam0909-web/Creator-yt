@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
@@ -11,66 +14,10 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint("Firebase optional local init: $e");
+    debugPrint("Firebase init log: $e");
   }
   runApp(const ApexStreamApp());
 }
-
-// ---------------- GLOBAL PRE-LOADED DEMO NETWORK DATA ----------------
-final List<Map<String, dynamic>> initialVideos = [
-  {
-    'id': 'vid_101',
-    'title': 'High-Speed Hypercar Drift & Racing In The City | 4K 60FPS',
-    'channel': 'Zenith Gaming Hub',
-    'avatar': 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150',
-    'views': '1.2M views',
-    'time': '2 hours ago',
-    'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'likes': 14200,
-    'subscribers': '450K',
-  },
-  {
-    'id': 'vid_102',
-    'title': 'Ultimate Open World Gameplay & Supercar Tuning Showcase',
-    'channel': 'Apex Velocity',
-    'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    'views': '840K views',
-    'time': '5 hours ago',
-    'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'likes': 9800,
-    'subscribers': '210K',
-  },
-  {
-    'id': 'vid_103',
-    'title': 'Top 10 Football Legends Attitude & Unstoppable Goals Moments',
-    'channel': 'Pro Sports Arena',
-    'avatar': 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
-    'views': '3.4M views',
-    'time': '1 day ago',
-    'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'likes': 85400,
-    'subscribers': '1.1M',
-  },
-];
-
-final List<Map<String, dynamic>> initialShorts = [
-  {
-    'id': 'short_1',
-    'creator': 'VelocityRider',
-    'title': 'Wait for the crazy drift! 🔥🏎️ #racing #hypercar',
-    'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'likes': '245K',
-    'comments': '1,420',
-  },
-  {
-    'id': 'short_2',
-    'creator': 'CR7_Zenith',
-    'title': 'Unstoppable clutch moment 🔥⚽ #attitude #skills',
-    'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'likes': '512K',
-    'comments': '3,890',
-  },
-];
 
 class ApexStreamApp extends StatelessWidget {
   const ApexStreamApp({super.key});
@@ -83,24 +30,126 @@ class ApexStreamApp extends StatelessWidget {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0A0A0A),
         primaryColor: const Color(0xFFFF0033),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0F0F0F),
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF0F0F0F), elevation: 0),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF0F0F0F),
           selectedItemColor: Color(0xFFFF0033),
           unselectedItemColor: Colors.white70,
         ),
       ),
-      home: const MainAppNavigation(),
+      home: const AuthGatekeeper(),
     );
   }
 }
 
-// ---------------- MAIN NAVIGATION ----------------
+// ---------------- 1. AUTH GATEKEEPER ----------------
+class AuthGatekeeper extends StatelessWidget {
+  const AuthGatekeeper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: Color(0xFFFF0033))),
+          );
+        }
+        if (snapshot.hasData && snapshot.data != null) {
+          return MainAppNavigation(currentUser: snapshot.data!);
+        }
+        return const GoogleLoginScreen();
+      },
+    );
+  }
+}
+
+// ---------------- 2. REAL GOOGLE LOGIN ----------------
+class GoogleLoginScreen extends StatefulWidget {
+  const GoogleLoginScreen({super.key});
+
+  @override
+  State<GoogleLoginScreen> createState() => _GoogleLoginScreenState();
+}
+
+class _GoogleLoginScreenState extends State<GoogleLoginScreen> {
+  bool _loading = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (userCred.user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
+          'uid': userCred.user!.uid,
+          'name': userCred.user!.displayName ?? 'Creator',
+          'email': userCred.user!.email,
+          'photoUrl': userCred.user!.photoURL ?? '',
+          'subscribers': 0,
+          'following': [],
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.play_circle_filled_rounded, size: 95, color: Color(0xFFFF0033)),
+              const SizedBox(height: 20),
+              const Text('ApexStream', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+              const SizedBox(height: 8),
+              const Text('The Censorship-Free Video Hub', style: TextStyle(color: Colors.grey, fontSize: 14)),
+              const SizedBox(height: 50),
+              _loading
+                  ? const CircularProgressIndicator(color: Color(0xFFFF0033))
+                  : ElevatedButton.icon(
+                      onPressed: _signInWithGoogle,
+                      icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.black),
+                      label: const Text('Sign In With Google', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                      ),
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- 3. MAIN NAVIGATION ----------------
 class MainAppNavigation extends StatefulWidget {
-  const MainAppNavigation({super.key});
+  final User currentUser;
+  const MainAppNavigation({super.key, required this.currentUser});
 
   @override
   State<MainAppNavigation> createState() => _MainAppNavigationState();
@@ -109,17 +158,17 @@ class MainAppNavigation extends StatefulWidget {
 class _MainAppNavigationState extends State<MainAppNavigation> {
   int _tabIndex = 0;
 
-  final List<Widget> _pages = const [
-    HomeExploreScreen(),
-    FullscreenReelsFeed(),
-    SubscriptionsScreen(),
-    ChannelProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      HomeExploreScreen(currentUser: widget.currentUser),
+      FullscreenReelsFeed(currentUser: widget.currentUser),
+      SubscriptionsScreen(currentUser: widget.currentUser),
+      ChannelProfileScreen(currentUser: widget.currentUser),
+    ];
+
     return Scaffold(
-      body: _pages[_tabIndex],
+      body: pages[_tabIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tabIndex,
         onTap: (i) => setState(() => _tabIndex = i),
@@ -135,9 +184,10 @@ class _MainAppNavigationState extends State<MainAppNavigation> {
   }
 }
 
-// ---------------- 1. HOME & EXPLORE FEED ----------------
+// ---------------- 4. HOME & EXPLORE (WITH GALLERY UPLOAD) ----------------
 class HomeExploreScreen extends StatefulWidget {
-  const HomeExploreScreen({super.key});
+  final User currentUser;
+  const HomeExploreScreen({super.key, required this.currentUser});
 
   @override
   State<HomeExploreScreen> createState() => _HomeExploreScreenState();
@@ -145,69 +195,118 @@ class HomeExploreScreen extends StatefulWidget {
 
 class _HomeExploreScreenState extends State<HomeExploreScreen> {
   String selectedFilter = 'All';
-  final List<String> tags = ['All', 'Car Racing', 'Gaming', 'Action', 'Live', '4K 60FPS', 'Anime', 'Football'];
+  final List<String> tags = ['All', 'Car Racing', 'Gaming', 'Action', 'Trending', 'Football', 'Shorts'];
+  final ImagePicker _picker = ImagePicker();
 
-  void _openUploadSheet() {
+  void _openGalleryUploadSheet() {
     final titleCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
-    final channelCtrl = TextEditingController();
+    File? selectedVideoFile;
+    bool isShort = false;
+    bool isUploading = false;
+    double progress = 0.0;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF181818),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          left: 20,
-          right: 20,
-          top: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.cloud_upload_outlined, color: Color(0xFFFF0033)),
-                SizedBox(width: 8),
-                Text('Publish to Decentralized Network', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 15),
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Video Title', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: channelCtrl, decoration: const InputDecoration(labelText: 'Channel / Creator Name', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: urlCtrl, decoration: const InputDecoration(labelText: 'Direct MP4 URL / IPFS Gateway', border: OutlineInputBorder())),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF0033),
-                minimumSize: const Size(double.infinity, 48),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Upload Video From Device', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Video Title', border: OutlineInputBorder()),
               ),
-              onPressed: () {
-                if (titleCtrl.text.isNotEmpty && urlCtrl.text.isNotEmpty) {
-                  setState(() {
-                    initialVideos.insert(0, {
-                      'id': 'vid_${DateTime.now().millisecondsSinceEpoch}',
-                      'title': titleCtrl.text.trim(),
-                      'channel': channelCtrl.text.isEmpty ? 'K09 Creator' : channelCtrl.text.trim(),
-                      'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                      'views': 'Just now',
-                      'time': '1 min ago',
-                      'videoUrl': urlCtrl.text.trim(),
-                      'likes': 1,
-                      'subscribers': '1',
+              const SizedBox(height: 12),
+              // Video Picker Button
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  side: BorderSide(color: selectedVideoFile != null ? Colors.green : Colors.white24),
+                ),
+                onPressed: () async {
+                  final XFile? file = await _picker.pickVideo(source: ImageSource.gallery);
+                  if (file != null) {
+                    setModalState(() {
+                      selectedVideoFile = File(file.path);
                     });
-                  });
-                  Navigator.pop(ctx);
-                }
-              },
-              child: const Text('Publish Video Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            )
-          ],
+                  }
+                },
+                icon: Icon(selectedVideoFile != null ? Icons.check_circle : Icons.video_collection,
+                    color: selectedVideoFile != null ? Colors.green : Colors.white),
+                label: Text(
+                  selectedVideoFile != null ? 'Video Selected from Gallery' : 'Choose Video from Gallery',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Checkbox(
+                    value: isShort,
+                    activeColor: const Color(0xFFFF0033),
+                    onChanged: (val) => setModalState(() => isShort = val ?? false),
+                  ),
+                  const Text('Mark as Short / Reel', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              if (isUploading) ...[
+                const SizedBox(height: 10),
+                LinearProgressIndicator(value: progress, color: const Color(0xFFFF0033)),
+                const SizedBox(height: 5),
+                Text('Uploading to Cloud: ${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF0033), minimumSize: const Size(double.infinity, 48)),
+                onPressed: isUploading
+                    ? null
+                    : () async {
+                        if (titleCtrl.text.isNotEmpty && selectedVideoFile != null) {
+                          setModalState(() => isUploading = true);
+
+                          String fileName = 'videos/${DateTime.now().millisecondsSinceEpoch}.mp4';
+                          UploadTask task = FirebaseStorage.instance.ref(fileName).putFile(selectedVideoFile!);
+
+                          task.snapshotEvents.listen((TaskSnapshot snap) {
+                            setModalState(() {
+                              progress = snap.bytesTransferred / snap.totalBytes;
+                            });
+                          });
+
+                          TaskSnapshot snapshot = await task;
+                          String downloadUrl = await snapshot.ref.getDownloadURL();
+
+                          await FirebaseFirestore.instance.collection('videos').add({
+                            'title': titleCtrl.text.trim(),
+                            'videoUrl': downloadUrl,
+                            'creatorId': widget.currentUser.uid,
+                            'creatorName': widget.currentUser.displayName ?? 'Creator',
+                            'creatorAvatar': widget.currentUser.photoURL ?? '',
+                            'isShort': isShort,
+                            'likes': [],
+                            'views': 0,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        }
+                      },
+                child: const Text('Publish Video to Feed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -225,15 +324,12 @@ class _HomeExploreScreenState extends State<HomeExploreScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.cast), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.notifications_none_rounded), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFF0033), size: 28), onPressed: _openUploadSheet),
+          IconButton(icon: const Icon(Icons.add_circle, color: Color(0xFFFF0033), size: 30), onPressed: _openGalleryUploadSheet),
         ],
       ),
       body: Column(
         children: [
-          // Filter Tags
+          // Filter Tags Bar
           SizedBox(
             height: 48,
             child: ListView.builder(
@@ -256,12 +352,26 @@ class _HomeExploreScreenState extends State<HomeExploreScreen> {
               },
             ),
           ),
-          // Videos Feed
+          // Live Database Feed
           Expanded(
-            child: ListView.builder(
-              itemCount: initialVideos.length,
-              itemBuilder: (context, index) {
-                return VideoFeedCard(videoData: initialVideos[index]);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('videos').where('isShort', isEqualTo: false).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033)));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('No videos in feed. Tap + to upload first video from Gallery!', style: TextStyle(color: Colors.grey)),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var doc = snapshot.data!.docs[index];
+                    return LiveVideoCard(doc: doc, currentUser: widget.currentUser);
+                  },
+                );
               },
             ),
           ),
@@ -271,29 +381,28 @@ class _HomeExploreScreenState extends State<HomeExploreScreen> {
   }
 }
 
-// ---------------- 2. VIDEO PLAYER CARD COMPONENT ----------------
-class VideoFeedCard extends StatefulWidget {
-  final Map<String, dynamic> videoData;
-  const VideoFeedCard({super.key, required this.videoData});
+// ---------------- 5. LIVE VIDEO COMPONENT ----------------
+class LiveVideoCard extends StatefulWidget {
+  final QueryDocumentSnapshot doc;
+  final User currentUser;
+  const LiveVideoCard({super.key, required this.doc, required this.currentUser});
 
   @override
-  State<VideoFeedCard> createState() => _VideoFeedCardState();
+  State<LiveVideoCard> createState() => _LiveVideoCardState();
 }
 
-class _VideoFeedCardState extends State<VideoFeedCard> {
+class _LiveVideoCardState extends State<LiveVideoCard> {
   late VideoPlayerController _videoController;
   ChewieController? _chewieController;
-  bool isLiked = false;
-  bool isSubscribed = false;
 
   @override
   void initState() {
     super.initState();
-    _initVideoPlayer();
+    _initVideo();
   }
 
-  void _initVideoPlayer() async {
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.videoData['videoUrl']));
+  void _initVideo() async {
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.doc['videoUrl']));
     await _videoController.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController,
@@ -317,19 +426,22 @@ class _VideoFeedCardState extends State<VideoFeedCard> {
 
   @override
   Widget build(BuildContext context) {
+    List likes = widget.doc['likes'] ?? [];
+    bool isLiked = likes.contains(widget.currentUser.uid);
+    String creatorId = widget.doc['creatorId'];
+    String photo = widget.doc['creatorAvatar'] ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Player
           AspectRatio(
             aspectRatio: 16 / 9,
             child: _chewieController != null && _chewieController!.videoPlayerController.value.isInitialized
                 ? Chewie(controller: _chewieController!)
                 : const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033))),
           ),
-          // Meta details
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
@@ -337,78 +449,31 @@ class _VideoFeedCardState extends State<VideoFeedCard> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundImage: NetworkImage(widget.videoData['avatar']),
+                  backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+                  child: photo.isEmpty ? const Icon(Icons.person) : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.videoData['title'],
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
+                      Text(widget.doc['title'], maxLines: 2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 4),
-                      Text(
-                        '${widget.videoData['channel']} • ${widget.videoData['views']} • ${widget.videoData['time']}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      Text('${widget.doc['creatorName']} • ${likes.length} likes', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 ),
-                // Subscribe Toggle
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isSubscribed ? const Color(0xFF2A2A2A) : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  ),
-                  onPressed: () => setState(() => isSubscribed = !isSubscribed),
-                  child: Text(
-                    isSubscribed ? 'Subscribed' : 'Subscribe',
-                    style: TextStyle(
-                      color: isSubscribed ? Colors.white70 : Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
+                IconButton(
+                  icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_outlined, color: isLiked ? const Color(0xFFFF0033) : Colors.white),
+                  onPressed: () async {
+                    if (isLiked) {
+                      await widget.doc.reference.update({'likes': FieldValue.arrayRemove([widget.currentUser.uid])});
+                    } else {
+                      await widget.doc.reference.update({'likes': FieldValue.arrayUnion([widget.currentUser.uid])});
+                    }
+                  },
                 ),
-              ],
-            ),
-          ),
-          // Action Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: () => setState(() => isLiked = !isLiked),
-                  child: Row(
-                    children: [
-                      Icon(isLiked ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined, color: isLiked ? const Color(0xFFFF0033) : Colors.white, size: 20),
-                      const SizedBox(width: 6),
-                      Text('${widget.videoData['likes'] + (isLiked ? 1 : 0)}'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 25),
-                const Row(
-                  children: [
-                    Icon(Icons.comment_outlined, size: 20),
-                    SizedBox(width: 6),
-                    Text('Comments'),
-                  ],
-                ),
-                const SizedBox(width: 25),
-                const Row(
-                  children: [
-                    Icon(Icons.share_outlined, size: 20),
-                    SizedBox(width: 6),
-                    Text('Share'),
-                  ],
-                ),
+                SubscribeToggle(creatorId: creatorId, currentUserId: widget.currentUser.uid),
               ],
             ),
           ),
@@ -418,38 +483,94 @@ class _VideoFeedCardState extends State<VideoFeedCard> {
   }
 }
 
-// ---------------- 3. FULLSCREEN VERTICAL REELS / SHORTS ----------------
-class FullscreenReelsFeed extends StatelessWidget {
-  const FullscreenReelsFeed({super.key});
+// ---------------- 6. SUBSCRIBE BUTTON ----------------
+class SubscribeToggle extends StatelessWidget {
+  final String creatorId;
+  final String currentUserId;
+  const SubscribeToggle({super.key, required this.creatorId, required this.currentUserId});
 
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: initialShorts.length,
-      itemBuilder: (context, index) {
-        return SingleShortViewer(shortData: initialShorts[index]);
+    if (creatorId == currentUserId) return const SizedBox.shrink();
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        List following = (snapshot.data!.data() as Map<String, dynamic>?)?['following'] ?? [];
+        bool isSub = following.contains(creatorId);
+
+        return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isSub ? const Color(0xFF2A2A2A) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          ),
+          onPressed: () async {
+            if (isSub) {
+              await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
+                'following': FieldValue.arrayRemove([creatorId])
+              });
+            } else {
+              await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
+                'following': FieldValue.arrayUnion([creatorId])
+              });
+            }
+          },
+          child: Text(
+            isSub ? 'Subscribed' : 'Subscribe',
+            style: TextStyle(color: isSub ? Colors.white70 : Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        );
       },
     );
   }
 }
 
-class SingleShortViewer extends StatefulWidget {
-  final Map<String, dynamic> shortData;
-  const SingleShortViewer({super.key, required this.shortData});
+// ---------------- 7. FULLSCREEN VERTICAL REELS / SHORTS ----------------
+class FullscreenReelsFeed extends StatelessWidget {
+  final User currentUser;
+  const FullscreenReelsFeed({super.key, required this.currentUser});
 
   @override
-  State<SingleShortViewer> createState() => _SingleShortViewerState();
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('videos').where('isShort', isEqualTo: true).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033)));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No Shorts uploaded yet. Tap + on Home to add one!', style: TextStyle(color: Colors.grey)));
+        }
+        return PageView.builder(
+          scrollDirection: Axis.vertical,
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            return SingleShortItem(doc: snapshot.data!.docs[index], user: currentUser);
+          },
+        );
+      },
+    );
+  }
 }
 
-class _SingleShortViewerState extends State<SingleShortViewer> {
+class SingleShortItem extends StatefulWidget {
+  final QueryDocumentSnapshot doc;
+  final User user;
+  const SingleShortItem({super.key, required this.doc, required this.user});
+
+  @override
+  State<SingleShortItem> createState() => _SingleShortItemState();
+}
+
+class _SingleShortItemState extends State<SingleShortItem> {
   late VideoPlayerController _controller;
-  bool liked = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.shortData['videoUrl']))
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.doc['videoUrl']))
       ..initialize().then((_) {
         _controller.setLooping(true);
         _controller.play();
@@ -465,6 +586,9 @@ class _SingleShortViewerState extends State<SingleShortViewer> {
 
   @override
   Widget build(BuildContext context) {
+    List likes = widget.doc['likes'] ?? [];
+    bool isLiked = likes.contains(widget.user.uid);
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -478,7 +602,6 @@ class _SingleShortViewerState extends State<SingleShortViewer> {
                 ),
               )
             : const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033))),
-        // Creator Overlay Info
         Positioned(
           bottom: 30,
           left: 15,
@@ -486,30 +609,31 @@ class _SingleShortViewerState extends State<SingleShortViewer> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('@${widget.shortData['creator']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('@${widget.doc['creatorName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
-              Text(widget.shortData['title'], style: const TextStyle(fontSize: 14)),
+              Text(widget.doc['title'], style: const TextStyle(fontSize: 14)),
             ],
           ),
         ),
-        // Floating Action Buttons
         Positioned(
           bottom: 40,
           right: 15,
           child: Column(
             children: [
               IconButton(
-                iconSize: 34,
-                icon: Icon(liked ? Icons.favorite : Icons.favorite_border, color: liked ? const Color(0xFFFF0033) : Colors.white),
-                onPressed: () => setState(() => liked = !liked),
+                iconSize: 36,
+                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? const Color(0xFFFF0033) : Colors.white),
+                onPressed: () async {
+                  if (isLiked) {
+                    await widget.doc.reference.update({'likes': FieldValue.arrayRemove([widget.user.uid])});
+                  } else {
+                    await widget.doc.reference.update({'likes': FieldValue.arrayUnion([widget.user.uid])});
+                  }
+                },
               ),
-              Text(widget.shortData['likes'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 18),
-              const Icon(Icons.insert_comment_rounded, size: 30),
-              Text(widget.shortData['comments'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Text('${likes.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 18),
               const Icon(Icons.share, size: 30),
-              const Text('Share', style: TextStyle(fontSize: 12)),
             ],
           ),
         )
@@ -518,59 +642,47 @@ class _SingleShortViewerState extends State<SingleShortViewer> {
   }
 }
 
-// ---------------- 4. SUBSCRIPTIONS TAB ----------------
+// ---------------- 8. SUBSCRIPTIONS TAB ----------------
 class SubscriptionsScreen extends StatelessWidget {
-  const SubscriptionsScreen({super.key});
+  final User currentUser;
+  const SubscriptionsScreen({super.key, required this.currentUser});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Subscriptions', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: ListView(
-        children: [
-          // Subscribed Creator Circles
-          SizedBox(
-            height: 100,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              children: [
-                _buildAvatarStory('Zenith Gaming', 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150'),
-                _buildAvatarStory('Apex Velocity', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
-                _buildAvatarStory('Pro Sports', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150'),
-              ],
-            ),
-          ),
-          const Divider(color: Colors.white12),
-          // Videos from Subscribed Channels
-          VideoFeedCard(videoData: initialVideos[0]),
-          VideoFeedCard(videoData: initialVideos[1]),
-        ],
-      ),
-    );
-  }
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
+        builder: (context, userSnap) {
+          if (!userSnap.hasData) return const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033)));
+          List following = (userSnap.data!.data() as Map<String, dynamic>?)?['following'] ?? [];
 
-  Widget _buildAvatarStory(String name, String imgUrl) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: const Color(0xFFFF0033),
-            child: CircleAvatar(radius: 24, backgroundImage: NetworkImage(imgUrl)),
-          ),
-          const SizedBox(height: 4),
-          Text(name, style: const TextStyle(fontSize: 11, color: Colors.white70)),
-        ],
+          if (following.isEmpty) {
+            return const Center(child: Text('Subscribe to creators to see their videos here!', style: TextStyle(color: Colors.grey)));
+          }
+
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('videos').where('creatorId', whereIn: following).snapshots(),
+            builder: (context, videoSnap) {
+              if (!videoSnap.hasData || videoSnap.data!.docs.isEmpty) {
+                return const Center(child: Text('No uploads from subscribed channels yet.'));
+              }
+              return ListView.builder(
+                itemCount: videoSnap.data!.docs.length,
+                itemBuilder: (context, i) => LiveVideoCard(doc: videoSnap.data!.docs[i], currentUser: currentUser),
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
-// ---------------- 5. CHANNEL PROFILE & STUDIO ----------------
+// ---------------- 9. CHANNEL PROFILE & LOGOUT ----------------
 class ChannelProfileScreen extends StatelessWidget {
-  const ChannelProfileScreen({super.key});
+  final User currentUser;
+  const ChannelProfileScreen({super.key, required this.currentUser});
 
   @override
   Widget build(BuildContext context) {
@@ -578,58 +690,34 @@ class ChannelProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Creator Studio', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Color(0xFFFF0033)),
+            onPressed: () async {
+              await GoogleSignIn().signOut();
+              await FirebaseAuth.instance.signOut();
+            },
+          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Center(
+          Center(
             child: CircleAvatar(
               radius: 46,
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
+              backgroundImage: currentUser.photoURL != null ? NetworkImage(currentUser.photoURL!) : null,
+              child: currentUser.photoURL == null ? const Icon(Icons.person, size: 40) : null,
             ),
           ),
           const SizedBox(height: 14),
-          const Center(child: Text('Kaif Alam Studio', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-          const Center(child: Text('@kaifalam09 • 1.25M Subscribers', style: TextStyle(color: Colors.grey, fontSize: 13))),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatBox('Views', '12.4M'),
-              _buildStatBox('Watch Time', '380K hrs'),
-              _buildStatBox('Earning', 'Web3 Token'),
-            ],
-          ),
-          const SizedBox(height: 30),
-          const Divider(color: Colors.white12),
+          Center(child: Text(currentUser.displayName ?? 'Creator', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+          Center(child: Text(currentUser.email ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13))),
+          const SizedBox(height: 35),
           ListTile(
-            leading: const Icon(Icons.video_library_rounded, color: Color(0xFFFF0033)),
-            title: const Text('Your Videos & Uploads'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            leading: const Icon(Icons.cloud_done_rounded, color: Colors.green),
+            title: const Text('Firebase & Cloud Storage Connected'),
+            subtitle: const Text('Direct gallery video streaming active'),
           ),
-          ListTile(
-            leading: const Icon(Icons.analytics_outlined, color: Colors.blueAccent),
-            title: const Text('Channel Analytics'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatBox(String title, String val) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
