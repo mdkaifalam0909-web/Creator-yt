@@ -1,28 +1,26 @@
-name: decentralized_video_app
-description: Full-featured Video, Reels and Subscription Streaming App.
+name: apexstream
+description: ApexStream Video App
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  video_player: ^2.9.2
-  chewie: ^1.8.5
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.19.7
+  cloud_firestore: ^4.17.5
+  firebase_storage: ^11.7.7
+  video_player: ^2.8.6
+  chewie: 1.7.5
   image_picker: ^1.1.2
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  google_sign_in: ^6.2.1
-  cloud_firestore: ^5.4.4
-  firebase_storage: ^12.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
