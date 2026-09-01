@@ -13,12 +13,11 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint("Firebase init log: $e");
+    debugPrint("Firebase log: $e");
   }
   runApp(const ApexStreamApp());
 }
 
-// ---------------- 100% PRE-LOADED VIRAL FEED (KABHI KHILAA NAHI RAHEGA) ----------------
 final List<Map<String, dynamic>> globalApexFeed = [
   {
     'id': 'v_1',
@@ -97,7 +96,6 @@ class ApexStreamApp extends StatelessWidget {
   }
 }
 
-// ---------------- BOTTOM NAVIGATION BAR ----------------
 class MainTabHolder extends StatefulWidget {
   const MainTabHolder({super.key});
 
@@ -134,7 +132,6 @@ class _MainTabHolderState extends State<MainTabHolder> {
   }
 }
 
-// ---------------- 1. HOME SCREEN (FILLED FEED + GMAIL AUTH + GALLERY UPLOAD) ----------------
 class HomeFeedView extends StatefulWidget {
   const HomeFeedView({super.key});
 
@@ -221,7 +218,7 @@ class _HomeFeedViewState extends State<HomeFeedView> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     setState(() {});
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Auth: $e')));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Auth Error: $e')));
                   }
                 },
                 child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -405,7 +402,6 @@ class _HomeFeedViewState extends State<HomeFeedView> {
       ),
       body: Column(
         children: [
-          // Filter Tags Row
           SizedBox(
             height: 48,
             child: ListView.builder(
@@ -428,7 +424,6 @@ class _HomeFeedViewState extends State<HomeFeedView> {
               },
             ),
           ),
-          // Instant Main Video Feed
           Expanded(
             child: ListView.builder(
               itemCount: globalApexFeed.length,
@@ -443,7 +438,6 @@ class _HomeFeedViewState extends State<HomeFeedView> {
   }
 }
 
-// ---------------- 2. VIDEO PLAYER FEED CARD ----------------
 class VideoPlayerFeedCard extends StatefulWidget {
   final Map<String, dynamic> videoData;
   const VideoPlayerFeedCard({super.key, required this.videoData});
@@ -511,4 +505,333 @@ class _VideoPlayerFeedCardState extends State<VideoPlayerFeedCard> {
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: NetworkImage(widget.videoData['creatorAvatar']),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.videoData['title'], maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text('${widget.videoData['creatorName']} • ${widget.videoData['views']} • ${widget.videoData['time']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isSubscribed ? const Color(0xFF2A2A2A) : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  ),
+                  onPressed: () => setState(() => isSubscribed = !isSubscribed),
+                  child: Text(
+                    isSubscribed ? 'Subscribed' : 'Subscribe',
+                    style: TextStyle(color: isSubscribed ? Colors.white70 : Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => setState(() => isLiked = !isLiked),
+                  child: Row(
+                    children: [
+                      Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_outlined, color: isLiked ? const Color(0xFFFF0033) : Colors.white, size: 20),
+                      const SizedBox(width: 6),
+                      Text('${(widget.videoData['likesCount'] ?? 10) + (isLiked ? 1 : 0)}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 28),
+                const Row(
+                  children: [
+                    Icon(Icons.comment_outlined, size: 20),
+                    SizedBox(width: 6),
+                    Text('Comments'),
+                  ],
+                ),
+                const SizedBox(width: 28),
+                const Row(
+                  children: [
+                    Icon(Icons.share_outlined, size: 20),
+                    SizedBox(width: 6),
+                    Text('Share'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ReelsShortsView extends StatelessWidget {
+  const ReelsShortsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      scrollDirection: Axis.vertical,
+      itemCount: globalShortsFeed.length,
+      itemBuilder: (context, index) {
+        return SingleReelViewer(reelData: globalShortsFeed[index]);
+      },
+    );
+  }
+}
+
+class SingleReelViewer extends StatefulWidget {
+  final Map<String, dynamic> reelData;
+  const SingleReelViewer({super.key, required this.reelData});
+
+  @override
+  State<SingleReelViewer> createState() => _SingleReelViewerState();
+}
+
+class _SingleReelViewerState extends State<SingleReelViewer> {
+  late VideoPlayerController _controller;
+  bool isLiked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.reelData['videoUrl']))
+      ..initialize().then((_) {
+        _controller.setLooping(true);
+        _controller.play();
+        setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _controller.value.isInitialized
+            ? FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller.value.size.width,
+                  height: _controller.value.size.height,
+                  child: VideoPlayer(_controller),
+                ),
+              )
+            : const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033))),
+        Positioned(
+          bottom: 30,
+          left: 15,
+          right: 80,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('@${widget.reelData['creator']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 6),
+              Text(widget.reelData['title'], style: const TextStyle(fontSize: 14)),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: 40,
+          right: 15,
+          child: Column(
+            children: [
+              IconButton(
+                iconSize: 34,
+                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? const Color(0xFFFF0033) : Colors.white),
+                onPressed: () => setState(() => isLiked = !isLiked),
+              ),
+              Text(widget.reelData['likes'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 18),
+              const Icon(Icons.insert_comment_rounded, size: 30),
+              Text(widget.reelData['comments'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 18),
+              const Icon(Icons.share, size: 30),
+              const Text('Share', style: TextStyle(fontSize: 12)),
+            ],
+          ),
+        )
+      ],
+    );
+  }
+}
+
+class SubscriptionsFeedView extends StatelessWidget {
+  const SubscriptionsFeedView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Subscriptions', style: TextStyle(fontWeight: FontWeight.bold))),
+      body: ListView(
+        children: [
+          SizedBox(
+            height: 100,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              children: [
+                _buildChannelAvatar('Apex Horizon', 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150'),
+                _buildChannelAvatar('Cyber Gaming', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
+                _buildChannelAvatar('Pro Sports', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150'),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white12),
+          VideoPlayerFeedCard(videoData: globalApexFeed[0]),
+          VideoPlayerFeedCard(videoData: globalApexFeed[1]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelAvatar(String name, String img) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: const Color(0xFFFF0033),
+            child: CircleAvatar(radius: 24, backgroundImage: NetworkImage(img)),
+          ),
+          const SizedBox(height: 4),
+          Text(name, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+}
+
+class UserProfileStudioView extends StatefulWidget {
+  const UserProfileStudioView({super.key});
+
+  @override
+  State<UserProfileStudioView> createState() => _UserProfileStudioViewState();
+}
+
+class _UserProfileStudioViewState extends State<UserProfileStudioView> {
+  @override
+  Widget build(BuildContext context) {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Creator Studio', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Center(
+            child: CircleAvatar(
+              radius: 46,
+              backgroundColor: const Color(0xFFFF0033),
+              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+              child: user?.photoURL == null
+                  ? Text(
+                      user != null ? (user.email?[0].toUpperCase() ?? 'U') : 'G',
+                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Center(
+            child: Text(
+              user != null ? (user.displayName ?? user.email?.split('@')[0] ?? 'Kaif Creator') : 'Guest User',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Center(
+            child: Text(
+              user != null ? user.email! : 'Sign in to manage your uploads & analytics',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 25),
+          if (user != null)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                side: const BorderSide(color: Colors.white24),
+              ),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                setState(() {});
+              },
+              icon: const Icon(Icons.logout, color: Colors.white70),
+              label: const Text('Sign Out', style: TextStyle(color: Colors.white70)),
+            ),
+          const SizedBox(height: 25),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStatBox('Views', '15.2M'),
+              _buildStatBox('Watch Time', '460K hrs'),
+              _buildStatBox('Storage', 'Cloud IPFS'),
+            ],
+          ),
+          const SizedBox(height: 30),
+          const Divider(color: Colors.white12),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.blueAccent),
+            title: const Text('Privacy Policy & User Rights'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: const Color(0xFF1E1E1E),
+                  title: const Text('Privacy Policy'),
+                  content: const SingleChildScrollView(
+                    child: Text(
+                      'ApexStream Privacy Policy:\n\n'
+                      '1. Account Info: Your Gmail address is strictly used for authentication.\n\n'
+                      '2. Video Rights: Uploaded video content remains under your ownership.\n\n'
+                      '3. Data Safety: No third-party data tracking or selling.',
+                      style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('I Agree', style: TextStyle(color: Color(0xFFFF0033)))),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String title, String val) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
