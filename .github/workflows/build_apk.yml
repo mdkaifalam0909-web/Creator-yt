@@ -28,8 +28,7 @@ jobs:
 
       - name: Recreate Android Project Files Cleanly
         run: |
-          flutter create . --platforms=android --org com.apex.stream
-          # Set minSdkVersion to 21 for Firebase compatibility
+          flutter create . --project-name apexstream --platforms=android --org com.apex.stream
           sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
 
