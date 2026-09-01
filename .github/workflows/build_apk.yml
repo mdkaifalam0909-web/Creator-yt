@@ -22,22 +22,26 @@ jobs:
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
+          flutter-version: '3.19.6'
           channel: 'stable'
           cache: true
 
-      - name: Generate Android Skeleton If Missing
+      - name: Recreate Android Project Files Cleanly
         run: |
           flutter create . --platforms=android --org com.apex.stream
+          # Set minSdkVersion to 21 for Firebase compatibility
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
 
-      - name: Install Flutter Dependencies
+      - name: Install Flutter Packages
         run: flutter pub get
 
-      - name: Build Standalone Release APK
+      - name: Build Android Release APK
         run: flutter build apk --release --no-shrink
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ApexStream-Release-App
           path: build/app/outputs/flutter-apk/app-release.apk
+          
