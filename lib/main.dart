@@ -305,7 +305,7 @@ class HomeScreenFeed extends StatelessWidget {
   }
 }
 
-// ---------------- 5. LONG VIDEO COMPONENT (WITH LIKES & SUBSCRIBE) ----------------
+// ---------------- 5. LONG VIDEO COMPONENT ----------------
 class LongVideoCard extends StatefulWidget {
   final QueryDocumentSnapshot doc;
   final User currentUser;
@@ -350,6 +350,7 @@ class _LongVideoCardState extends State<LongVideoCard> {
     List likes = widget.doc['likes'] ?? [];
     bool isLiked = likes.contains(widget.currentUser.uid);
     String creatorId = widget.doc['creatorId'];
+    String photo = widget.doc['creatorPhoto'] ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -369,8 +370,8 @@ class _LongVideoCardState extends State<LongVideoCard> {
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.grey.shade800,
-                  backgroundImage: widget.doc['creatorPhoto'] != '' ? NetworkImage(widget.doc['creatorPhoto']) : null,
-                  child: widget.doc['creatorPhoto'] == '' ? const Icon(Icons.person, color: Colors.white) : null,
+                  backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+                  child: photo.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -533,4 +534,97 @@ class _SingleReelItemState extends State<SingleReelItem> {
           child: Column(
             children: [
               IconButton(
-                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.white, si
+                iconSize: 36,
+                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.white),
+                onPressed: () async {
+                  if (isLiked) {
+                    await widget.doc.reference.update({'likes': FieldValue.arrayRemove([widget.user.uid])});
+                  } else {
+                    await widget.doc.reference.update({'likes': FieldValue.arrayUnion([widget.user.uid])});
+                  }
+                },
+              ),
+              Text('${likes.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        )
+      ],
+    );
+  }
+}
+
+// ---------------- 8. TAB 3: SUBSCRIPTIONS FEED ----------------
+class SubscriptionsFeed extends StatelessWidget {
+  final User user;
+  const SubscriptionsFeed({super.key, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Subscriptions', style: TextStyle(fontWeight: FontWeight.bold))),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+        builder: (context, userSnap) {
+          if (!userSnap.hasData) return const Center(child: CircularProgressIndicator(color: Colors.redAccent));
+          List following = (userSnap.data!.data() as Map<String, dynamic>?)?['following'] ?? [];
+
+          if (following.isEmpty) {
+            return const Center(child: Text('Subscribe to creators to see their videos here!', style: TextStyle(color: Colors.grey)));
+          }
+
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('videos').where('creatorId', whereIn: following).snapshots(),
+            builder: (context, videoSnap) {
+              if (!videoSnap.hasData || videoSnap.data!.docs.isEmpty) {
+                return const Center(child: Text('No recent uploads from subscribed channels.'));
+              }
+              return ListView.builder(
+                itemCount: videoSnap.data!.docs.length,
+                itemBuilder: (context, i) => LongVideoCard(doc: videoSnap.data!.docs[i], currentUser: user),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------- 9. TAB 4: USER PROFILE & LOGOUT ----------------
+class UserProfileScreen extends StatelessWidget {
+  final User user;
+  const UserProfileScreen({super.key, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Channel Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Center(
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+                child: user.photoURL == null ? const Icon(Icons.person, size: 50) : null,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Text(user.displayName ?? 'Creator', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(user.email ?? '', style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 40),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () async {
+                await GoogleSignIn().signOut();
+                await FirebaseAuth.instance.signOut();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
