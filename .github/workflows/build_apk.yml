@@ -26,9 +26,15 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Recreate Android Project Files Cleanly
+      - name: Recreate Android Project Files with Exact Firebase Package
         run: |
-          flutter create . --project-name apexstream --platforms=android --org com.apex.stream
+          # Firebase project package name match: com.streamsphere.app
+          flutter create . --project-name apexstream --platforms=android --org com.streamsphere
+
+          # Permissions inject (Internet + Storage)
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>' android/app/src/main/AndroidManifest.xml || true
+
+          # Android SDK versions set
           sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
           sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
 
