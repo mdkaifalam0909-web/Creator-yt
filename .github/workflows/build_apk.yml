@@ -19,22 +19,17 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: Set up Latest Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
           channel: 'stable'
+          cache: true
 
       - name: Create Clean Project & Inject Code
         run: |
-          # 1. Fresh flutter project create karna
           flutter create --org com.streamsphere.app my_app
-          
-          # 2. Hamara pubspec aur main.dart replace karna
           cp pubspec.yaml my_app/pubspec.yaml
           cp lib/main.dart my_app/lib/main.dart
-          
-          # 3. Target directory par switch karna
           cd my_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
@@ -44,4 +39,3 @@ jobs:
         with:
           name: StreamSphere-Official-Release-APK
           path: my_app/build/app/outputs/flutter-apk/app-release.apk
-          
