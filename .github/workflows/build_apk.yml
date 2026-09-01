@@ -29,17 +29,8 @@ jobs:
       - name: Recreate Android Project Files Cleanly
         run: |
           flutter create . --project-name apexstream --platforms=android --org com.apex.stream
-          
-          # Fix compileSdk and minSdk across all plugins and app
-          cat << 'EOF' >> android/app/build.gradle
-          android {
-              compileSdkVersion 34
-              defaultConfig {
-                  minSdkVersion 21
-                  targetSdkVersion 34
-              }
-          }
-          EOF
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle || true
+          sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle || true
 
       - name: Install Flutter Packages
         run: flutter pub get
@@ -52,4 +43,3 @@ jobs:
         with:
           name: ApexStream-Release-App
           path: build/app/outputs/flutter-apk/app-release.apk
-          
