@@ -369,7 +369,7 @@ class _LongVideoCardState extends State<LongVideoCard> {
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.grey.shade800,
-                  backgroundImage: widget.doc['creatorPhoto'] != '' ? NetworkURL(widget.doc['creatorPhoto']) as ImageProvider : null,
+                  backgroundImage: widget.doc['creatorPhoto'] != '' ? NetworkImage(widget.doc['creatorPhoto']) : null,
                   child: widget.doc['creatorPhoto'] == '' ? const Icon(Icons.person, color: Colors.white) : null,
                 ),
                 const SizedBox(width: 12),
@@ -533,4 +533,4 @@ class _SingleReelItemState extends State<SingleReelItem> {
           child: Column(
             children: [
               IconButton(
-                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : C
+                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.white, si
