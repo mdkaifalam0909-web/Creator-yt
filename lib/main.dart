@@ -18,56 +18,59 @@ void main() async {
   runApp(const ApexStreamApp());
 }
 
-// ---------------- GLOBAL MOCK / SEED DATABASE ----------------
-final List<Map<String, dynamic>> masterVideoList = [
+// ---------------- 100% PRE-LOADED VIRAL FEED (KABHI KHILAA NAHI RAHEGA) ----------------
+final List<Map<String, dynamic>> globalApexFeed = [
   {
-    'id': 'vid_1',
-    'title': '4K Hypercar City Drift & Ultra Graphics Ray-Tracing Gameplay',
-    'creatorName': 'Apex Racing Pro',
+    'id': 'v_1',
+    'title': '4K Hypercar Night Drift & Ray-Tracing Showcase 60FPS',
+    'creatorName': 'Apex Horizon Pro',
     'creatorAvatar': 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150',
     'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'views': '2.4M views',
+    'views': '2.8M views',
     'time': '1 hour ago',
-    'likesCount': 45200,
+    'likesCount': 54200,
+    'subscribers': '1.2M',
   },
   {
-    'id': 'vid_2',
-    'title': 'Next-Gen Open World Exploration 60FPS Ultimate RTX On',
+    'id': 'v_2',
+    'title': 'Next-Gen Open World Cyber Exploration & Stealth Mission',
     'creatorName': 'Cyber Gaming Hub',
     'creatorAvatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
     'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'views': '890K views',
+    'views': '940K views',
     'time': '3 hours ago',
-    'likesCount': 29400,
+    'likesCount': 38900,
+    'subscribers': '850K',
   },
   {
-    'id': 'vid_3',
-    'title': 'Football Championship Clutch Goals & Best Highlights 2026',
-    'creatorName': 'World Sports Arena',
+    'id': 'v_3',
+    'title': 'Champions League Unstoppable Clutch & Impossible Goals 2026',
+    'creatorName': 'Pro Sports Central',
     'creatorAvatar': 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
     'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'views': '4.1M views',
-    'time': '1 day ago',
-    'likesCount': 108000,
+    'views': '5.1M views',
+    'time': '6 hours ago',
+    'likesCount': 120500,
+    'subscribers': '3.4M',
   },
 ];
 
-final List<Map<String, dynamic>> masterShortsList = [
+final List<Map<String, dynamic>> globalShortsFeed = [
   {
     'id': 'sh_1',
     'creator': 'VelocityRider',
-    'title': 'Craziest drift save ever recorded! 🔥🏎️ #drift #speed',
+    'title': 'Wait for the crazy drift exit! 🔥🏎️ #supercar #speed',
     'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'likes': '420K',
-    'comments': '3,410',
+    'likes': '520K',
+    'comments': '4,100',
   },
   {
     'id': 'sh_2',
-    'creator': 'ClutchGod',
-    'title': 'Impossible last second goal 😱⚽ #football',
+    'creator': 'GoalGod',
+    'title': 'Unbelievable 90th minute bicycle kick 😱⚽ #football',
     'videoUrl': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'likes': '780K',
-    'comments': '5,890',
+    'likes': '890K',
+    'comments': '6,720',
   },
 ];
 
@@ -89,27 +92,27 @@ class ApexStreamApp extends StatelessWidget {
           unselectedItemColor: Colors.white70,
         ),
       ),
-      home: const MainNavigationHolder(),
+      home: const MainTabHolder(),
     );
   }
 }
 
-// ---------------- BOTTOM NAVIGATION ----------------
-class MainNavigationHolder extends StatefulWidget {
-  const MainNavigationHolder({super.key});
+// ---------------- BOTTOM NAVIGATION BAR ----------------
+class MainTabHolder extends StatefulWidget {
+  const MainTabHolder({super.key});
 
   @override
-  State<MainNavigationHolder> createState() => _MainNavigationHolderState();
+  State<MainTabHolder> createState() => _MainTabHolderState();
 }
 
-class _MainNavigationHolderState extends State<MainNavigationHolder> {
+class _MainTabHolderState extends State<MainTabHolder> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
-    HomeFeedScreen(),
-    ReelsShortsScreen(),
-    SubscriptionsFeedScreen(),
-    UserProfileStudioScreen(),
+    HomeFeedView(),
+    ReelsShortsView(),
+    SubscriptionsFeedView(),
+    UserProfileStudioView(),
   ];
 
   @override
@@ -131,20 +134,20 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
   }
 }
 
-// ---------------- 1. HOME SCREEN & GALLERY UPLOAD ----------------
-class HomeFeedScreen extends StatefulWidget {
-  const HomeFeedScreen({super.key});
+// ---------------- 1. HOME SCREEN (FILLED FEED + GMAIL AUTH + GALLERY UPLOAD) ----------------
+class HomeFeedView extends StatefulWidget {
+  const HomeFeedView({super.key});
 
   @override
-  State<HomeFeedScreen> createState() => _HomeFeedScreenState();
+  State<HomeFeedView> createState() => _HomeFeedViewState();
 }
 
-class _HomeFeedScreenState extends State<HomeFeedScreen> {
+class _HomeFeedViewState extends State<HomeFeedView> {
   String selectedFilter = 'All';
-  final List<String> categories = ['All', 'Gaming', 'Racing', 'Live', 'Shorts', 'Trending', 'Sports'];
+  final List<String> categories = ['All', 'Gaming', 'Racing', 'Live', 'Shorts', 'Trending', 'Football', 'Highlights'];
   final ImagePicker _picker = ImagePicker();
 
-  void _showAuthModal() {
+  void _openGmailAuthSheet() {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     bool isSignUp = false;
@@ -166,13 +169,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.play_circle_fill, color: Color(0xFFFF0033), size: 32),
-                  const SizedBox(width: 10),
-                  Text(isSignUp ? 'Create Apex Account' : 'Sign In to ApexStream', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Icon(Icons.play_circle_fill, color: Color(0xFFFF0033), size: 30),
+                  const SizedBox(width: 8),
+                  Text(isSignUp ? 'Create Gmail Account' : 'Sign In with Gmail', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -181,7 +184,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.email_outlined),
-                  labelText: 'Gmail / Email Address',
+                  labelText: 'Gmail / Email ID',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -223,11 +226,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 },
                 child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               TextButton(
                 onPressed: () => setModalState(() => isSignUp = !isSignUp),
                 child: Text(
-                  isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up with Gmail",
+                  isSignUp ? 'Already registered? Sign In' : "Don't have an account? Sign Up with Gmail",
                   style: const TextStyle(color: Colors.white70),
                 ),
               ),
@@ -238,17 +241,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     );
   }
 
-  void _openUploadDialog() {
+  void _openUploadSheet() {
     final titleCtrl = TextEditingController();
     final creatorCtrl = TextEditingController();
-    File? pickedVideoFile;
+    File? pickedVideo;
     bool isUploading = false;
     double uploadProgress = 0.0;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1C1C),
+      backgroundColor: const Color(0xFF1E1E1E),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
@@ -283,18 +286,18 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(color: pickedVideoFile != null ? Colors.green : Colors.white30),
+                  side: BorderSide(color: pickedVideo != null ? Colors.green : Colors.white30),
                 ),
                 onPressed: () async {
-                  final XFile? vid = await _picker.pickVideo(source: ImageSource.gallery);
-                  if (vid != null) {
-                    setModalState(() => pickedVideoFile = File(vid.path));
+                  final XFile? file = await _picker.pickVideo(source: ImageSource.gallery);
+                  if (file != null) {
+                    setModalState(() => pickedVideo = File(file.path));
                   }
                 },
-                icon: Icon(pickedVideoFile != null ? Icons.check_circle : Icons.video_library_rounded,
-                    color: pickedVideoFile != null ? Colors.green : Colors.white),
+                icon: Icon(pickedVideo != null ? Icons.check_circle : Icons.video_library,
+                    color: pickedVideo != null ? Colors.green : Colors.white),
                 label: Text(
-                  pickedVideoFile != null ? 'Video Selected from Phone Gallery' : 'Select Video from Phone Gallery',
+                  pickedVideo != null ? 'Video Selected from Phone Gallery' : 'Select Video from Phone Gallery',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -302,7 +305,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 const SizedBox(height: 14),
                 LinearProgressIndicator(value: uploadProgress, color: const Color(0xFFFF0033)),
                 const SizedBox(height: 6),
-                Text('Publishing: ${(uploadProgress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Publishing to Feed: ${(uploadProgress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
               const SizedBox(height: 18),
               ElevatedButton(
@@ -313,45 +316,46 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 onPressed: isUploading
                     ? null
                     : () async {
-                        if (titleCtrl.text.isNotEmpty && pickedVideoFile != null) {
+                        if (titleCtrl.text.isNotEmpty && pickedVideo != null) {
                           setModalState(() => isUploading = true);
-                          String directUrl = '';
+                          String videoUrl = '';
 
                           try {
                             String fName = 'videos/${DateTime.now().millisecondsSinceEpoch}.mp4';
-                            UploadTask task = FirebaseStorage.instance.ref(fName).putFile(pickedVideoFile!);
+                            UploadTask task = FirebaseStorage.instance.ref(fName).putFile(pickedVideo!);
                             task.snapshotEvents.listen((snap) {
                               setModalState(() => uploadProgress = snap.bytesTransferred / snap.totalBytes);
                             });
                             TaskSnapshot snap = await task;
-                            directUrl = await snap.ref.getDownloadURL();
+                            videoUrl = await snap.ref.getDownloadURL();
                           } catch (e) {
-                            directUrl = pickedVideoFile!.path;
+                            videoUrl = pickedVideo!.path;
                           }
 
-                          var newEntry = {
+                          var newVideo = {
                             'id': 'user_${DateTime.now().millisecondsSinceEpoch}',
                             'title': titleCtrl.text.trim(),
-                            'creatorName': creatorCtrl.text.isEmpty ? (FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'Apex Creator') : creatorCtrl.text.trim(),
+                            'creatorName': creatorCtrl.text.isEmpty ? (FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'Kaif Creator') : creatorCtrl.text.trim(),
                             'creatorAvatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                            'videoUrl': directUrl,
+                            'videoUrl': videoUrl,
                             'views': '1 view',
                             'time': 'Just now',
                             'likesCount': 1,
+                            'subscribers': '100',
                           };
 
                           try {
-                            await FirebaseFirestore.instance.collection('videos').add(newEntry);
+                            await FirebaseFirestore.instance.collection('videos').add(newVideo);
                           } catch (_) {}
 
                           setState(() {
-                            masterVideoList.insert(0, newEntry);
+                            globalApexFeed.insert(0, newVideo);
                           });
 
                           if (ctx.mounted) Navigator.pop(ctx);
                         }
                       },
-                child: const Text('Publish Video', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                child: const Text('Publish Video to Feed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ],
           ),
@@ -378,12 +382,12 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           IconButton(icon: const Icon(Icons.search), onPressed: () {}),
           IconButton(
             icon: const Icon(Icons.add_circle, color: Color(0xFFFF0033), size: 28),
-            onPressed: _openUploadDialog,
+            onPressed: _openUploadSheet,
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12.0, left: 4),
             child: InkWell(
-              onTap: _showAuthModal,
+              onTap: _openGmailAuthSheet,
               child: currentUser != null
                   ? CircleAvatar(
                       radius: 14,
@@ -401,7 +405,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       ),
       body: Column(
         children: [
-          // Filter Row
+          // Filter Tags Row
           SizedBox(
             height: 48,
             child: ListView.builder(
@@ -427,9 +431,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           // Instant Main Video Feed
           Expanded(
             child: ListView.builder(
-              itemCount: masterVideoList.length,
+              itemCount: globalApexFeed.length,
               itemBuilder: (context, index) {
-                return VideoPlayerFeedCard(videoData: masterVideoList[index]);
+                return VideoPlayerFeedCard(videoData: globalApexFeed[index]);
               },
             ),
           ),
@@ -439,7 +443,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 }
 
-// ---------------- 2. VIDEO PLAYER CARD ----------------
+// ---------------- 2. VIDEO PLAYER FEED CARD ----------------
 class VideoPlayerFeedCard extends StatefulWidget {
   final Map<String, dynamic> videoData;
   const VideoPlayerFeedCard({super.key, required this.videoData});
@@ -507,411 +511,4 @@ class _VideoPlayerFeedCardState extends State<VideoPlayerFeedCard> {
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: NetworkImage(widget.videoData['creatorAvatar']),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.videoData['title'], maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('${widget.videoData['creatorName']} • ${widget.videoData['views']} • ${widget.videoData['time']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isSubscribed ? const Color(0xFF2A2A2A) : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  ),
-                  onPressed: () => setState(() => isSubscribed = !isSubscribed),
-                  child: Text(
-                    isSubscribed ? 'Subscribed' : 'Subscribe',
-                    style: TextStyle(color: isSubscribed ? Colors.white70 : Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: () => setState(() => isLiked = !isLiked),
-                  child: Row(
-                    children: [
-                      Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_outlined, color: isLiked ? const Color(0xFFFF0033) : Colors.white, size: 20),
-                      const SizedBox(width: 6),
-                      Text('${(widget.videoData['likesCount'] ?? 10) + (isLiked ? 1 : 0)}'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 28),
-                const Row(
-                  children: [
-                    Icon(Icons.comment_outlined, size: 20),
-                    SizedBox(width: 6),
-                    Text('Comments'),
-                  ],
-                ),
-                const SizedBox(width: 28),
-                const Row(
-                  children: [
-                    Icon(Icons.share_outlined, size: 20),
-                    SizedBox(width: 6),
-                    Text('Share'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------- 3. FULLSCREEN REELS / SHORTS ----------------
-class ReelsShortsScreen extends StatelessWidget {
-  const ReelsShortsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: masterShortsList.length,
-      itemBuilder: (context, index) {
-        return SingleReelViewer(reelData: masterShortsList[index]);
-      },
-    );
-  }
-}
-
-class SingleReelViewer extends StatefulWidget {
-  final Map<String, dynamic> reelData;
-  const SingleReelViewer({super.key, required this.reelData});
-
-  @override
-  State<SingleReelViewer> createState() => _SingleReelViewerState();
-}
-
-class _SingleReelViewerState extends State<SingleReelViewer> {
-  late VideoPlayerController _controller;
-  bool isLiked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.reelData['videoUrl']))
-      ..initialize().then((_) {
-        _controller.setLooping(true);
-        _controller.play();
-        setState(() {});
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        _controller.value.isInitialized
-            ? FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _controller.value.size.width,
-                  height: _controller.value.size.height,
-                  child: VideoPlayer(_controller),
-                ),
-              )
-            : const Center(child: CircularProgressIndicator(color: Color(0xFFFF0033))),
-        Positioned(
-          bottom: 30,
-          left: 15,
-          right: 80,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('@${widget.reelData['creator']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 6),
-              Text(widget.reelData['title'], style: const TextStyle(fontSize: 14)),
-            ],
-          ),
-        ),
-        Positioned(
-          bottom: 40,
-          right: 15,
-          child: Column(
-            children: [
-              IconButton(
-                iconSize: 34,
-                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? const Color(0xFFFF0033) : Colors.white),
-                onPressed: () => setState(() => isLiked = !isLiked),
-              ),
-              Text(widget.reelData['likes'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 18),
-              const Icon(Icons.insert_comment_rounded, size: 30),
-              Text(widget.reelData['comments'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 18),
-              const Icon(Icons.share, size: 30),
-              const Text('Share', style: TextStyle(fontSize: 12)),
-            ],
-          ),
-        )
-      ],
-    );
-  }
-}
-
-// ---------------- 4. SUBSCRIPTIONS SCREEN ----------------
-class SubscriptionsFeedScreen extends StatelessWidget {
-  const SubscriptionsFeedScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Subscriptions', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: ListView(
-        children: [
-          SizedBox(
-            height: 100,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              children: [
-                _buildChannelAvatar('Apex Racing', 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150'),
-                _buildChannelAvatar('Cyber Gaming', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'),
-                _buildChannelAvatar('World Sports', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150'),
-              ],
-            ),
-          ),
-          const Divider(color: Colors.white12),
-          VideoPlayerFeedCard(videoData: masterVideoList[0]),
-          VideoPlayerFeedCard(videoData: masterVideoList[1]),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChannelAvatar(String name, String img) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: const Color(0xFFFF0033),
-            child: CircleAvatar(radius: 24, backgroundImage: NetworkImage(img)),
-          ),
-          const SizedBox(height: 4),
-          Text(name, style: const TextStyle(fontSize: 11, color: Colors.white70)),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------- 5. CREATOR STUDIO & GMAIL AUTH ----------------
-class UserProfileStudioScreen extends StatefulWidget {
-  const UserProfileStudioScreen({super.key});
-
-  @override
-  State<UserProfileStudioScreen> createState() => _UserProfileStudioScreenState();
-}
-
-class _UserProfileStudioScreenState extends State<UserProfileStudioScreen> {
-  @override
-  Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Creator Studio', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: CircleAvatar(
-              radius: 46,
-              backgroundColor: const Color(0xFFFF0033),
-              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-              child: user?.photoURL == null
-                  ? Text(
-                      user != null ? (user.email?[0].toUpperCase() ?? 'U') : 'G',
-                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Center(
-            child: Text(
-              user != null ? (user.displayName ?? user.email?.split('@')[0] ?? 'Apex Creator') : 'Guest User',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Center(
-            child: Text(
-              user != null ? user.email! : 'Sign in to sync channel & videos',
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
-            ),
-          ),
-          const SizedBox(height: 25),
-          if (user == null)
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF0033),
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () {
-                // Trigger quick email login dialog
-                _showAuthSheet(context);
-              },
-              icon: const Icon(Icons.login),
-              label: const Text('Sign In / Register with Gmail', style: TextStyle(fontWeight: FontWeight.bold)),
-            )
-          else
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-                side: const BorderSide(color: Colors.white24),
-              ),
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                setState(() {});
-              },
-              icon: const Icon(Icons.logout, color: Colors.white70),
-              label: const Text('Sign Out', style: TextStyle(color: Colors.white70)),
-            ),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatBox('Views', '14.8M'),
-              _buildStatBox('Watch Time', '420K hrs'),
-              _buildStatBox('Storage', 'Cloud IPFS'),
-            ],
-          ),
-          const SizedBox(height: 30),
-          const Divider(color: Colors.white12),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.blueAccent),
-            title: const Text('Privacy Policy & User Rights'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: const Color(0xFF1E1E1E),
-                  title: const Text('Privacy Policy'),
-                  content: const SingleChildScrollView(
-                    child: Text(
-                      'ApexStream Privacy Policy:\n\n'
-                      '1. Account Info: Your Gmail address is strictly used for authentication.\n\n'
-                      '2. Video Rights: Uploaded video content remains under your ownership.\n\n'
-                      '3. Data Safety: No third-party data tracking or selling.',
-                      style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('I Agree', style: TextStyle(color: Color(0xFFFF0033)))),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAuthSheet(BuildContext context) {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    bool isSignUp = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E1E1E),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 25,
-            left: 25,
-            right: 25,
-            top: 25,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(isSignUp ? 'Create Gmail Account' : 'Sign In with Gmail', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email / Gmail', border: OutlineInputBorder())),
-              const SizedBox(height: 10),
-              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
-              const SizedBox(height: 15),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF0033), minimumSize: const Size(double.infinity, 48)),
-                onPressed: () async {
-                  try {
-                    if (isSignUp) {
-                      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                        email: emailCtrl.text.trim(),
-                        password: passCtrl.text.trim(),
-                      );
-                    } else {
-                      await FirebaseAuth.instance.signInWithEmailAndPassword(
-                        email: emailCtrl.text.trim(),
-                        password: passCtrl.text.trim(),
-                      );
-                    }
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    setState(() {});
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                },
-                child: Text(isSignUp ? 'Sign Up' : 'Sign In'),
-              ),
-              TextButton(
-                onPressed: () => setModalState(() => isSignUp = !isSignUp),
-                child: Text(isSignUp ? 'Already registered? Sign In' : 'New user? Sign Up'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatBox(String title, String val) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Text(val, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-}
+              crossAxisAlignment: CrossAxisAlignment
